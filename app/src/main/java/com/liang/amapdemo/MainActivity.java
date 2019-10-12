@@ -46,7 +46,7 @@ import butterknife.BindView;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
 
-public class MainActivity extends AppCompatActivity implements AMap.OnMyLocationChangeListener, GeocodeSearch.OnGeocodeSearchListener, AMap.OnMapTouchListener {
+public class MainActivity extends AppCompatActivity implements AMap.OnMyLocationChangeListener, GeocodeSearch.OnGeocodeSearchListener, AMap.OnMapTouchListener, AMap.OnMarkerClickListener {
     @BindView(R.id.map_view)
     MapView mapView;
     @BindView(R.id.iv_btn)
@@ -77,6 +77,10 @@ public class MainActivity extends AppCompatActivity implements AMap.OnMyLocation
 
     private Map<String, LatLng> poaitionMap = new HashMap<>();
 
+    private boolean isTouchMap = true;
+
+    private Marker lastClickMarker;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -85,11 +89,16 @@ public class MainActivity extends AppCompatActivity implements AMap.OnMyLocation
         //此方法必须重写
         //在activity执行onCreate时执行mapView.onCreate(savedInstanceState)，创建地图
         mapView.onCreate(savedInstanceState);
+        //AMap类是地图的控制器类，用来操作地图。
+        //初始化地图控制器对象
+        if (aMap == null) {
+            aMap = mapView.getMap();
+        }
         //初始化权限
         initPermission();
-        getLocalData();
         if (mIsPermissionGanted) {
             initMapLocation();
+            getLocalData();
         }
     }
 
@@ -244,13 +253,6 @@ public class MainActivity extends AppCompatActivity implements AMap.OnMyLocation
     }
 
     private void initMapLocation() {
-
-        //AMap类是地图的控制器类，用来操作地图。
-        //初始化地图控制器对象
-        if (aMap == null) {
-            aMap = mapView.getMap();
-        }
-
         //实例化UiSettings类对象
         uiSettings = aMap.getUiSettings();
         //缩放按钮(默认显示)
@@ -305,14 +307,18 @@ public class MainActivity extends AppCompatActivity implements AMap.OnMyLocation
 
         //比例尺控件
         uiSettings.setScaleControlsEnabled(true);
-        aMap.moveCamera(CameraUpdateFactory.zoomTo(14));
+        aMap.moveCamera(CameraUpdateFactory.zoomTo(16));
 
         //地图Logo
         uiSettings.setLogoLeftMargin(10000); // 隐藏logo
 
-        //获取经纬度信息：
+        //获取当前经纬度信息：
         aMap.setOnMyLocationChangeListener(this);
 
+        //设置点击marker事件监听器
+        aMap.setOnMarkerClickListener(this);
+
+        //地图触摸响应事件
         aMap.setOnMapTouchListener(this);
     }
 
@@ -364,6 +370,7 @@ public class MainActivity extends AppCompatActivity implements AMap.OnMyLocation
                 //定位权限授权成功
                 mIsPermissionGanted = true;
                 initMapLocation();
+                getLocalData();
             }
         }
     }
@@ -447,6 +454,7 @@ public class MainActivity extends AppCompatActivity implements AMap.OnMyLocation
 //                    currentMarker.showInfoWindow();
                     }
                 });
+//                aMap.addMarker(new MarkerOptions().icon(BitmapDescriptorFactory.fromResource(R.mipmap.ic_launcher)).position(latLng));
                 Log.e("LocationChange", "onMyLocationChange: 定位成功  " + "位置变化~");
             } else {
                 Log.e("LocationChange", "onMyLocationChange: 定位成功  " + "位置没有变化~");
@@ -487,11 +495,63 @@ public class MainActivity extends AppCompatActivity implements AMap.OnMyLocation
     }
 
     @Override
+    public boolean onMarkerClick(Marker marker) {
+        lastClickMarker = marker;
+        //判断当前定位点是否显示信息窗口如果显示则关闭，如果没有显示则显示信息窗口
+        if (lastClickMarker.isInfoWindowShown()) {
+            lastClickMarker.hideInfoWindow();
+        } else {
+            lastClickMarker.showInfoWindow();
+        }
+        //返回false，点击Marker后当前点位显示在地图中心
+        return false;
+    }
+
+    @Override
     public void onTouch(MotionEvent motionEvent) {
         //用户拖动地图后，不再跟随移动，需要跟随移动时再把这个改成true
         if (followMove) {
             followMove = false;
         }
+
+
+        if (aMap != null && lastClickMarker.isInfoWindowShown()) {
+            lastClickMarker.hideInfoWindow();
+        }
+
+        /*
+        aMap.setOnMapTouchListener(new AMap.OnMapTouchListener() {
+            @Override
+            public void onTouch(MotionEvent motionEvent) {
+                if (motionEvent.getAction() == MotionEvent.ACTION_DOWN) {
+                    if (motionEvent.getY() < rlImActivity.getY()) {
+                        isTouchMap = false;
+                    } else {
+                        isTouchMap = true;
+                    }
+                    if (rlImActivity.getVisibility() == View.VISIBLE && !isTouchMap) {
+                        downTheDetail();
+                    }
+                }
+                if (motionEvent.getAction() == MotionEvent.ACTION_MOVE && !isTouchMap) {
+                    if (rlImActivity.getVisibility() == View.VISIBLE) {
+                        downTheDetail();
+                    }
+                }
+
+//                if (aMap != null && markers != null && !isTouchMap && lastClickMarker.isInfoWindowShown()) {
+                if (aMap != null && !isTouchMap && lastClickMarker.isInfoWindowShown()) {
+                    lastClickMarker.hideInfoWindow();
+                }
+
+//                if (aMap != null && markers2 != null && !isTouchMap && lastClickMarker.isInfoWindowShown()) {
+                if (aMap != null && !isTouchMap && lastClickMarker.isInfoWindowShown()) {
+                    lastClickMarker.hideInfoWindow();
+                }
+
+            }
+        });
+         */
     }
 
     @OnClick(R.id.iv_btn)
